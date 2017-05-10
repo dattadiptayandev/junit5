@@ -28,31 +28,35 @@ class EnumArgumentsProvider implements ArgumentsProvider, AnnotationConsumer<Enu
 
 	private Class<? extends Enum<?>> enumClass;
 	private Set<String> names = Collections.emptySet();
+	private EnumSource.ConstantSelectionMode mode;
 
 	@Override
 	@SuppressWarnings("rawtypes")
 	public void accept(EnumSource enumSource) {
 		enumClass = enumSource.value();
+		mode = enumSource.mode();
 		if (enumSource.names().length > 0) {
 
 			names = stream(enumSource.names()).collect(toSet());
 			Preconditions.condition(names.size() == enumSource.names().length,
 				() -> "Duplicate enum constant name(s) found in annotation: " + enumSource);
 
-			Set<String> allSet = stream(enumClass.getEnumConstants()).map(Enum::name).collect(toSet());
-			Preconditions.condition(allSet.containsAll(names),
-				() -> "Invalid enum constant name(s) found in annotation: " + enumSource + ". Valid names include: "
-						+ allSet);
+			if (mode.isConstantNameExpected()) {
+				Set<String> allSet = stream(enumClass.getEnumConstants()).map(Enum::name).collect(toSet());
+				Preconditions.condition(allSet.containsAll(names),
+					() -> "Invalid enum constant name(s) found in annotation: " + enumSource + ". Valid names are: "
+							+ allSet);
+			}
 		}
 	}
 
 	@Override
 	public Stream<? extends Arguments> provideArguments(ContainerExtensionContext context) {
-		return stream(enumClass.getEnumConstants()).filter(this::select).map(ObjectArrayArguments::arguments);
-	}
-
-	private boolean select(Enum<?> constant) {
-		return names == Collections.EMPTY_SET || names.contains(constant.name());
+		Stream<? extends Enum<?>> stream = stream(enumClass.getEnumConstants());
+		if (names != Collections.EMPTY_SET) {
+			stream = stream.filter(constant -> mode.select(constant, names));
+		}
+		return stream.map(ObjectArrayArguments::arguments);
 	}
 
 }

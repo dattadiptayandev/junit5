@@ -71,6 +71,7 @@ class EnumArgumentsProviderTests {
 		EnumSource annotation = mock(EnumSource.class);
 		when(annotation.value()).thenAnswer(invocation -> enumClass);
 		when(annotation.names()).thenAnswer(invocation -> names);
+		when(annotation.mode()).thenAnswer(invocation -> EnumSource.ConstantSelectionMode.INCLUDE_NAMES);
 		when(annotation.toString()).thenReturn(String.format("@EnumSource(value=%s.class, names={%s})",
 			enumClass.getSimpleName(), Arrays.toString(names)));
 

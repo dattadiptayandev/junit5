@@ -17,8 +17,11 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Set;
+import java.util.function.BiPredicate;
 
 import org.junit.platform.commons.meta.API;
+import org.junit.platform.commons.util.Preconditions;
 
 /**
  * {@code @EnumSource} is an {@link ArgumentsSource} for constants of a
@@ -56,5 +59,33 @@ public @interface EnumSource {
 	 * @see #value
 	 */
 	String[] names() default {};
+
+	ConstantSelectionMode mode() default ConstantSelectionMode.INCLUDE_NAMES;
+
+	enum ConstantSelectionMode {
+		INCLUDE_NAMES(true, (name, names) -> names.contains(name)),
+		EXCLUDE_NAMES(true, (name, names) -> !names.contains(name)),
+		MATCHES_ALL(false, (name, expressions) -> expressions.stream().allMatch(name::matches)),
+		MATCHES_ANY(false, (name, expressions) -> expressions.stream().anyMatch(name::matches));
+
+		final boolean constantNameExpected;
+		final BiPredicate<String, Set<String>> selector;
+
+		ConstantSelectionMode(boolean constantNameExpected, BiPredicate<String, Set<String>> selector) {
+			this.constantNameExpected = constantNameExpected;
+			this.selector = selector;
+		}
+
+		public boolean isConstantNameExpected() {
+			return constantNameExpected;
+		}
+
+		public boolean select(Enum<?> constant, Set<String> names) {
+			Preconditions.notNull(constant, "constant must not be null");
+			Preconditions.notNull(names, "names must not be null");
+
+			return selector.test(constant.name(), names);
+		}
+	}
 
 }
